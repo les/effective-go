@@ -3,7 +3,6 @@ package shortener
 import (
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 const (
@@ -15,23 +14,20 @@ const (
 // Server is a URL shortener HTTP server. Server is an http.Handler
 // that can route requests to the appropriate handler.
 type Server struct {
-	// fields can be added to store server-specific dependencies.
+	mux *http.ServeMux
 }
 
 // RegisterRoutes registers the handlers.
-func (s *Server) RegisterRoutes() { /* will be implemented later */ }
+func (s *Server) RegisterRoutes() {
+	mux := http.NewServeMux()
+	mux.HandleFunc(shorteningRoute, handleShorten)
+	mux.HandleFunc(resolveRoute, handleResolve)
+	mux.HandleFunc(healthCheckRoute, handleHealthCheck)
+	s.mux = mux
+}
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch p := r.URL.Path; {
-	case p == shorteningRoute:
-		handleShorten(w, r)
-	case strings.HasPrefix(p, resolveRoute):
-		handleResolve(w, r)
-	case p == healthCheckRoute:
-		handleHealthCheck(w, r)
-	default:
-		http.NotFound(w, r) // respond with 404 if no path matches
-	}
+	s.mux.ServeHTTP(w, r)
 }
 
 // handleShorten handles the URL shortening requests.
