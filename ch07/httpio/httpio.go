@@ -1,6 +1,10 @@
 package httpio
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/inancgumus/effective-go/ch07/bite"
+)
 
 // Handler is a http.Handler that allows chaining handlers.
 type Handler func(w http.ResponseWriter, r *http.Request) http.Handler
@@ -17,6 +21,10 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // actual error message from the client.
 func Error(code int, message string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if code == http.StatusInternalServerError {
+			Log(r.Context(), "%s: %v", r.URL.Path, message)
+			message = bite.ErrInternal.Error()
+		}
 		http.Error(w, message, code)
 	}
 }
