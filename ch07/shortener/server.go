@@ -53,11 +53,9 @@ func handleShorten(w http.ResponseWriter, r *http.Request) http.Handler {
 	if err := short.Create(r.Context(), ln); err != nil {
 		return handleError(err)
 	}
-	_ = httpio.Encode(w, http.StatusCreated, map[string]any{
+	return httpio.JSON(http.StatusCreated, map[string]any{
 		"key": ln.Key,
 	})
-
-	return nil // success
 }
 
 // handleResolve handles the URL resolving requests for the short links.
