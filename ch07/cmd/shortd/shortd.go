@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -19,7 +19,8 @@ func main() {
 	)
 	flag.Parse()
 
-	fmt.Fprintln(os.Stderr, "starting the server on", *addr)
+	logger := log.New(os.Stderr, "shortener: ", log.LstdFlags|log.Lmsgprefix)
+	logger.Println("starting the server on", *addr)
 
 	shortenerServer := &shortener.Server{}
 	shortenerServer.RegisterRoutes()
@@ -30,10 +31,11 @@ func main() {
 		ReadTimeout: *timeout,
 	}
 	if os.Getenv("BITE_DEBUG") == "1" {
+		server.ErrorLog = logger
 		server.Handler = httpio.LoggingMiddleware(server.Handler)
 	}
 	err := server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		fmt.Fprintln(os.Stderr, "server closed unexpectedly:", err)
+		logger.Println("server closed unexpectedly:", err)
 	}
 }
