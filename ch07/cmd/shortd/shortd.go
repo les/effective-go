@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/inancgumus/effective-go/ch07/httpio"
 	"github.com/inancgumus/effective-go/ch07/shortener"
 )
 
@@ -27,6 +28,9 @@ func main() {
 		Addr:        *addr,
 		Handler:     http.TimeoutHandler(shortenerServer, *timeout, "timeout"),
 		ReadTimeout: *timeout,
+	}
+	if os.Getenv("BITE_DEBUG") == "1" {
+		server.Handler = httpio.LoggingMiddleware(server.Handler)
 	}
 	err := server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
