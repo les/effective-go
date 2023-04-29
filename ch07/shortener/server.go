@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/inancgumus/effective-go/ch07/bite"
+	"github.com/inancgumus/effective-go/ch07/httpio"
 	"github.com/inancgumus/effective-go/ch07/short"
 )
 
@@ -40,22 +41,19 @@ func (s *Server) RegisterRoutes() {
 //	413               The request body is too large.
 //	500               There is an internal error.
 func handleShorten(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	var ln short.Link
 
-	ln := short.Link{
-		Key: r.FormValue("key"),
-		URL: r.FormValue("url"),
+	if err := httpio.Decode(r.Body, &ln); err != nil {
+		http.Error(w, "cannot decode JSON", http.StatusBadRequest)
+		return
 	}
 	if err := short.Create(r.Context(), ln); err != nil {
 		handleError(w, err)
 		return
 	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(ln.Key))
+	_ = httpio.Encode(w, http.StatusCreated, map[string]any{
+		"key": ln.Key,
+	})
 }
 
 // handleResolve handles the URL resolving requests for the short links.
