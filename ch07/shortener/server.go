@@ -14,7 +14,7 @@ const (
 // Server is a URL shortener HTTP server. Server is an http.Handler
 // that can route requests to the appropriate handler.
 type Server struct {
-	mux *http.ServeMux
+	http.Handler
 }
 
 // RegisterRoutes registers the handlers.
@@ -23,11 +23,7 @@ func (s *Server) RegisterRoutes() {
 	mux.HandleFunc(shorteningRoute, handleShorten)
 	mux.HandleFunc(resolveRoute, handleResolve)
 	mux.HandleFunc(healthCheckRoute, handleHealthCheck)
-	s.mux = mux
-}
-
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	s.Handler = mux
 }
 
 // handleShorten handles the URL shortening requests.
