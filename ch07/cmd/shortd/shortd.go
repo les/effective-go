@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/inancgumus/effective-go/ch07/shortener"
 )
 
 func main() {
@@ -18,14 +20,12 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, "starting the server on", *addr)
 
-	shortener := http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintln(w, "hello from the shortener server!")
-		},
-	)
+	shortenerServer := &shortener.Server{}
+	shortenerServer.RegisterRoutes()
+
 	server := &http.Server{
 		Addr:        *addr,
-		Handler:     http.TimeoutHandler(shortener, *timeout, "timeout"),
+		Handler:     http.TimeoutHandler(shortenerServer, *timeout, "timeout"),
 		ReadTimeout: *timeout,
 	}
 	err := server.ListenAndServe()
