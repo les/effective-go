@@ -41,14 +41,19 @@ func (s *Server) RegisterRoutes() {
 //	413               The request body is too large.
 //	500               There is an internal error.
 func handleShorten(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var ln short.Link
 
-	if err := httpio.Decode(r.Body, &ln); err != nil {
+	if err := httpio.Decode(http.MaxBytesReader(w, r.Body, 4_096), &ln); err != nil {
 		http.Error(w, "cannot decode JSON", http.StatusBadRequest)
 		return
 	}
-	if err := short.Create(r.Context(), ln); err != nil {
-		handleError(w, err)
+	if err := short.Create(r.Context(), ln); errors.Is(err, bite.ErrInvalidRequest) {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	_ = httpio.Encode(w, http.StatusCreated, map[string]any{
