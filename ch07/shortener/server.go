@@ -25,8 +25,8 @@ type Server struct {
 // RegisterRoutes registers the handlers.
 func (s *Server) RegisterRoutes() {
 	mux := http.NewServeMux()
-	mux.HandleFunc(shorteningRoute, handleShorten)
-	mux.HandleFunc(resolveRoute, handleResolve)
+	mux.Handle(shorteningRoute, httpio.Handler(handleShorten))
+	mux.Handle(resolveRoute, httpio.Handler(handleResolve))
 	mux.HandleFunc(healthCheckRoute, handleHealthCheck)
 	s.Handler = mux
 }
@@ -40,25 +40,24 @@ func (s *Server) RegisterRoutes() {
 //	405               The request method is not POST.
 //	413               The request body is too large.
 //	500               There is an internal error.
-func handleShorten(w http.ResponseWriter, r *http.Request) {
+func handleShorten(w http.ResponseWriter, r *http.Request) http.Handler {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+		return httpio.Error(http.StatusMethodNotAllowed, "method not allowed")
 	}
 
 	var ln short.Link
 
 	if err := httpio.Decode(http.MaxBytesReader(w, r.Body, 4_096), &ln); err != nil {
-		http.Error(w, "cannot decode JSON", http.StatusBadRequest)
-		return
+		return httpio.Error(http.StatusBadRequest, "cannot decode JSON")
 	}
-	if err := short.Create(r.Context(), ln); errors.Is(err, bite.ErrInvalidRequest) {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := short.Create(r.Context(), ln); err != nil {
+		return handleError(err)
 	}
 	_ = httpio.Encode(w, http.StatusCreated, map[string]any{
 		"key": ln.Key,
 	})
+
+	return nil // success
 }
 
 // handleResolve handles the URL resolving requests for the short links.
@@ -68,16 +67,17 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 //	400               The request is invalid.
 //	404               The link does not exist.
 //	500               There is an internal error.
-func handleResolve(w http.ResponseWriter, r *http.Request) {
+func handleResolve(w http.ResponseWriter, r *http.Request) http.Handler {
 	key := r.URL.Path[len(resolveRoute):]
 
 	ln, err := short.Retrieve(r.Context(), key)
 	if err != nil {
-		handleError(w, err)
-		return
+		return handleError(err)
 	}
 
 	http.Redirect(w, r, ln.URL, http.StatusFound)
+
+	return nil // success
 }
 
 // handleHealthCheck handles the health check requests.
@@ -88,17 +88,17 @@ func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "OK")
 }
 
-func handleError(w http.ResponseWriter, err error) {
+func handleError(err error) http.Handler {
 	switch {
 	case err == nil: // no error
-		return
+		return nil
 	case errors.Is(err, bite.ErrInvalidRequest):
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		return httpio.Error(http.StatusBadRequest, err.Error())
 	case errors.Is(err, bite.ErrExists):
-		http.Error(w, err.Error(), http.StatusConflict)
+		return httpio.Error(http.StatusConflict, err.Error())
 	case errors.Is(err, bite.ErrNotExist):
-		http.Error(w, err.Error(), http.StatusNotFound)
+		return httpio.Error(http.StatusNotFound, err.Error())
 	default:
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return httpio.Error(http.StatusInternalServerError, err.Error())
 	}
 }
