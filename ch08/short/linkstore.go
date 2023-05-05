@@ -17,6 +17,27 @@ type LinkStore struct {
 // Create persists the given link. It returns bite.ErrInvalidRequest
 // if the link is invalid. Or it returns an error if the link cannot
 // be created.
+func (s *LinkStore) Create(ctx context.Context, ln Link) error {
+	if err := ValidateNewLink(ln); err != nil {
+		return fmt.Errorf("%w: %w", bite.ErrInvalidRequest, err)
+	}
+	const query = `
+		INSERT INTO links (
+			short_key, uri
+		) VALUES (
+			?, ?
+		)`
+	_, err := s.DB.ExecContext(ctx, query, ln.Key, ln.URL)
+	if err != nil {
+		return fmt.Errorf("creating link: %w", err)
+	}
+	return nil
+}
+
+// Create persists the given link. It returns bite.ErrInvalidRequest
+// if the link is invalid. Or it returns an error if the link cannot
+// be created.
+// Deprecated: Use LinkStore.Create instead.
 func Create(ctx context.Context, ln Link) error {
 	if err := validateNewLink(ln); err != nil {
 		return fmt.Errorf("%w: %w", bite.ErrInvalidRequest, err)
@@ -33,6 +54,7 @@ func Create(ctx context.Context, ln Link) error {
 // Retrieve gets a link from the given key. It returns bite.ErrInvalidRequest
 // if the key is invalid. Or it returns bite.ErrNotExist if the link
 // does not exist. Or it returns an error if the link cannot be retrieved.
+// Deprecated: Use LinkStore.Create instead.
 func Retrieve(ctx context.Context, key string) (Link, error) {
 	if err := validateLinkKey(key); err != nil {
 		return Link{}, fmt.Errorf("%w: %w", bite.ErrInvalidRequest, err)
