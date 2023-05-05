@@ -12,6 +12,7 @@ package sqlx
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"fmt"
 
 	_ "modernc.org/sqlite"
@@ -19,6 +20,9 @@ import (
 
 // DefaultDriver is the default SQL driver.
 const DefaultDriver = "sqlite"
+
+//go:embed schema.sql
+var schema string
 
 // DB is a wrapper around database/sql.DB.
 type DB struct {
@@ -36,6 +40,9 @@ func Dial(ctx context.Context, driver, dsn string) (*DB, error) {
 	// the book explanation easier :-)
 	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("pinging database: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, schema); err != nil {
+		return nil, fmt.Errorf("migrating schema: %w", err)
 	}
 	return &DB{DB: db}, nil
 }
