@@ -6,7 +6,13 @@ import (
 	"fmt"
 
 	"github.com/inancgumus/effective-go/ch08/bite"
+	"github.com/inancgumus/effective-go/ch08/sqlx"
 )
+
+// LinkStore persists and retrieves links.
+type LinkStore struct {
+	DB *sqlx.DB
+}
 
 // Create persists the given link. It returns bite.ErrInvalidRequest
 // if the link is invalid. Or it returns an error if the link cannot
