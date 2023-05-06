@@ -33,7 +33,7 @@ func (s *LinkStore) Create(ctx context.Context, ln Link) error {
 		) VALUES (
 			?, ?
 		)`
-	_, err := s.DB.ExecContext(ctx, query, ln.Key, ln.URL)
+	_, err := s.DB.ExecContext(ctx, query, ln.Key, sqlx.Base64String(ln.URL))
 	if sqlx.IsPrimaryKeyViolation(err) {
 		return ErrLinkExists
 	}
@@ -55,7 +55,7 @@ func (s *LinkStore) Retrieve(ctx context.Context, key string) (Link, error) {
 		FROM links
 		WHERE short_key = ?`
 	var (
-		url string
+		url sqlx.Base64String
 		err = s.DB.QueryRowContext(ctx, query, key).Scan(&url)
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -66,7 +66,7 @@ func (s *LinkStore) Retrieve(ctx context.Context, key string) (Link, error) {
 	}
 	return Link{
 		Key: key,
-		URL: url,
+		URL: url.String(),
 	}, nil
 }
 
