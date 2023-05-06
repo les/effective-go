@@ -70,6 +70,18 @@ func (s *LinkStore) Retrieve(ctx context.Context, key string) (Link, error) {
 	}, nil
 }
 
+/*
+
+Assume there are more methods as follows:
+
+func (s *LinkStore) Stats(ctx context.Context, key string) ([]LinkStat, error) { return nil, nil }
+func (s *LinkStore) BatchCreate(ctx context.Context, links []Link) error       { return nil }
+func (s *LinkStore) Search(ctx context.Context, filter Filter) ([]Link, error) { return nil, nil }
+
+10 more methods... 😅
+
+*/
+
 // Create persists the given link. It returns bite.ErrInvalidRequest
 // if the link is invalid. Or it returns an error if the link cannot
 // be created.

@@ -1,6 +1,10 @@
 package shortener
 
-import "github.com/inancgumus/effective-go/ch08/short"
+import (
+	"context"
+
+	"github.com/inancgumus/effective-go/ch08/short"
+)
 
 // Service represents the services provided to the shortener.
 //
@@ -13,5 +17,8 @@ import "github.com/inancgumus/effective-go/ch08/short"
 // retrieve stats. Or a logger service that provides the
 // ability to log messages.
 type Service struct {
-	LinkStore *short.LinkStore
+	LinkStore interface {
+		Create(context.Context, short.Link) error
+		Retrieve(ctx context.Context, key string) (short.Link, error)
+	}
 }
