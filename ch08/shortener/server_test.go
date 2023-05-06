@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/inancgumus/effective-go/ch08/httpio"
+	"github.com/inancgumus/effective-go/ch08/short"
+	"github.com/inancgumus/effective-go/ch08/sqlx/sqlxtest"
 )
 
 func TestHandleShorten(t *testing.T) {
@@ -24,7 +25,12 @@ func TestHandleShorten(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, shorteningRoute, bytes.NewReader(body))
 
-	handler := httpio.Handler(handleShorten)
+	svc := &Service{
+		LinkStore: &short.LinkStore{
+			DB: sqlxtest.Dial(t),
+		},
+	}
+	handler := handleShorten(svc)
 	handler.ServeHTTP(w, r)
 
 	if w.Code != http.StatusCreated {

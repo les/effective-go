@@ -20,13 +20,14 @@ const (
 // that can route requests to the appropriate handler.
 type Server struct {
 	http.Handler
+	Service *Service
 }
 
 // RegisterRoutes registers the handlers.
 func (s *Server) RegisterRoutes() {
 	mux := http.NewServeMux()
-	mux.Handle(shorteningRoute, httpio.Handler(handleShorten))
-	mux.Handle(resolveRoute, httpio.Handler(handleResolve))
+	mux.Handle(shorteningRoute, handleShorten(s.Service))
+	mux.Handle(resolveRoute, handleResolve(s.Service))
 	mux.HandleFunc(healthCheckRoute, handleHealthCheck)
 	s.Handler = mux
 }
@@ -40,22 +41,24 @@ func (s *Server) RegisterRoutes() {
 //	405               The request method is not POST.
 //	413               The request body is too large.
 //	500               There is an internal error.
-func handleShorten(w http.ResponseWriter, r *http.Request) http.Handler {
-	if r.Method != http.MethodPost {
-		return httpio.Error(http.StatusMethodNotAllowed, "method not allowed")
-	}
+func handleShorten(svc *Service) httpio.Handler {
+	return func(w http.ResponseWriter, r *http.Request) http.Handler {
+		if r.Method != http.MethodPost {
+			return httpio.Error(http.StatusMethodNotAllowed, "method not allowed")
+		}
 
-	var ln short.Link
+		var ln short.Link
 
-	if err := httpio.Decode(http.MaxBytesReader(w, r.Body, 4_096), &ln); err != nil {
-		return httpio.Error(http.StatusBadRequest, "cannot decode JSON")
+		if err := httpio.Decode(http.MaxBytesReader(w, r.Body, 4_096), &ln); err != nil {
+			return httpio.Error(http.StatusBadRequest, "cannot decode JSON")
+		}
+		if err := svc.LinkStore.Create(r.Context(), ln); err != nil {
+			return handleError(err)
+		}
+		return httpio.JSON(http.StatusCreated, map[string]any{
+			"key": ln.Key,
+		})
 	}
-	if err := short.Create(r.Context(), ln); err != nil {
-		return handleError(err)
-	}
-	return httpio.JSON(http.StatusCreated, map[string]any{
-		"key": ln.Key,
-	})
 }
 
 // handleResolve handles the URL resolving requests for the short links.
@@ -65,17 +68,19 @@ func handleShorten(w http.ResponseWriter, r *http.Request) http.Handler {
 //	400               The request is invalid.
 //	404               The link does not exist.
 //	500               There is an internal error.
-func handleResolve(w http.ResponseWriter, r *http.Request) http.Handler {
-	key := r.URL.Path[len(resolveRoute):]
+func handleResolve(svc *Service) httpio.Handler {
+	return func(w http.ResponseWriter, r *http.Request) http.Handler {
+		key := r.URL.Path[len(resolveRoute):]
 
-	ln, err := short.Retrieve(r.Context(), key)
-	if err != nil {
-		return handleError(err)
+		ln, err := svc.LinkStore.Retrieve(r.Context(), key)
+		if err != nil {
+			return handleError(err)
+		}
+
+		http.Redirect(w, r, ln.URL, http.StatusFound)
+
+		return nil // success
 	}
-
-	http.Redirect(w, r, ln.URL, http.StatusFound)
-
-	return nil // success
 }
 
 // handleHealthCheck handles the health check requests.
