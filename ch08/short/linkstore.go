@@ -2,6 +2,7 @@ package short
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -9,7 +10,10 @@ import (
 	"github.com/inancgumus/effective-go/ch08/sqlx"
 )
 
-var ErrLinkExists = fmt.Errorf("link %w", bite.ErrExists)
+var (
+	ErrLinkExists   = fmt.Errorf("link %w", bite.ErrExists)
+	ErrLinkNotExist = fmt.Errorf("link %w", bite.ErrNotExist)
+)
 
 // LinkStore persists and retrieves links.
 type LinkStore struct {
@@ -20,7 +24,7 @@ type LinkStore struct {
 // if the link is invalid. Or it returns an error if the link cannot
 // be created.
 func (s *LinkStore) Create(ctx context.Context, ln Link) error {
-	if err := ValidateNewLink(ln); err != nil {
+	if err := validateNewLink(ln); err != nil {
 		return fmt.Errorf("%w: %w", bite.ErrInvalidRequest, err)
 	}
 	const query = `
@@ -37,6 +41,33 @@ func (s *LinkStore) Create(ctx context.Context, ln Link) error {
 		return fmt.Errorf("creating link: %w", err)
 	}
 	return nil
+}
+
+// Retrieve gets a link from the given key. It returns bite.ErrInvalidRequest
+// if the key is invalid. Or it returns bite.ErrNotExist if the link
+// does not exist. Or it returns an error if the link cannot be retrieved.
+func (s *LinkStore) Retrieve(ctx context.Context, key string) (Link, error) {
+	if err := validateLinkKey(key); err != nil {
+		return Link{}, fmt.Errorf("%w: %w", bite.ErrInvalidRequest, err)
+	}
+	const query = `
+		SELECT uri
+		FROM links
+		WHERE short_key = ?`
+	var (
+		url string
+		err = s.DB.QueryRowContext(ctx, query, key).Scan(&url)
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Link{}, ErrLinkNotExist
+	}
+	if err != nil {
+		return Link{}, fmt.Errorf("retrieving link by key %q: %w", key, err)
+	}
+	return Link{
+		Key: key,
+		URL: url,
+	}, nil
 }
 
 // Create persists the given link. It returns bite.ErrInvalidRequest
