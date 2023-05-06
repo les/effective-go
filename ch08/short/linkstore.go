@@ -9,6 +9,8 @@ import (
 	"github.com/inancgumus/effective-go/ch08/sqlx"
 )
 
+var ErrLinkExists = fmt.Errorf("link %w", bite.ErrExists)
+
 // LinkStore persists and retrieves links.
 type LinkStore struct {
 	DB *sqlx.DB
@@ -28,6 +30,9 @@ func (s *LinkStore) Create(ctx context.Context, ln Link) error {
 			?, ?
 		)`
 	_, err := s.DB.ExecContext(ctx, query, ln.Key, ln.URL)
+	if sqlx.IsPrimaryKeyViolation(err) {
+		return ErrLinkExists
+	}
 	if err != nil {
 		return fmt.Errorf("creating link: %w", err)
 	}
