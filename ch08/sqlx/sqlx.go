@@ -13,9 +13,11 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 // DefaultDriver is the default SQL driver.
@@ -45,4 +47,15 @@ func Dial(ctx context.Context, driver, dsn string) (*DB, error) {
 		return nil, fmt.Errorf("migrating schema: %w", err)
 	}
 	return &DB{DB: db}, nil
+}
+
+// IsPrimaryKeyViolation returns true if the given error is a
+// primary key constraint error. For example, this can be used
+// to check if a primary key already exists in the database.
+func IsPrimaryKeyViolation(err error) bool {
+	var serr *sqlite.Error
+	if errors.As(err, &serr) {
+		return serr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY
+	}
+	return false
 }
