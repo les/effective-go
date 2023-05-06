@@ -31,4 +31,19 @@ func TestLinkStore(t *testing.T) {
 			t.Errorf("Create(%q) err = %q, want %q", link.Key, err, bite.ErrExists)
 		}
 	})
+	t.Run("retrieve", func(t *testing.T) {
+		got, err := store.Retrieve(ctx, link.Key)
+		if err != nil {
+			t.Errorf("Retrieve(%q) err = %q, want <nil>", link.Key, err)
+		}
+		if got != link {
+			t.Errorf("Retrieve(%q) = %#v, want %#v", link.Key, got, link)
+		}
+	})
+	t.Run("retrieve/not_found", func(t *testing.T) {
+		_, err := store.Retrieve(ctx, "not-found")
+		if !errors.Is(err, bite.ErrNotExist) {
+			t.Errorf("Retrieve(%q) err = %q, want %q", link.Key, err, bite.ErrNotExist)
+		}
+	})
 }
